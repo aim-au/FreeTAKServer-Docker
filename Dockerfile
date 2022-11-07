@@ -2,29 +2,32 @@ FROM ubuntu:20.04
 
 LABEL maintainer=FreeTAKTeam
 
-ARG FTS_VERSION=1.9
-ARG FTS_UI_VERSION=1.8.1
+ARG FTS_VERSION=v1.9.8
+ARG FTS_UI_VERSION=v1.9.8
 
 # UTC for buildtimes
 RUN ln -fs /usr/share/zoneinfo/UTC /etc/localtime
 
 #APT
 RUN apt-get update && \
-    apt-get install -y libssl-dev libffi-dev curl python3 python3-pip \
-            libxml2-dev libxslt-dev python3-lxml python3-dev \
-            python3-setuptools build-essential iproute2 &&\
+    apt-get install -y libssl-dev libffi-dev curl python3 python3-pip libxml2-dev libxslt-dev python3-lxml python3-dev python3-setuptools build-essential git-core default-libmysqlclient-dev &&\
     rm -rf /var/lib/apt/lists/*
-
 
 #PIP3
 RUN pip3 install supervisor &&\
     pip3 install requests &&\
     pip3 install flask_login &&\
-    pip3 install FreeTAKServer==${FTS_VERSION} && \
-    pip3 install FreeTAKServer-UI==${FTS_UI_VERSION} && \
     pip3 install defusedxml &&\
     pip3 install pyopenssl &&\
-    pip3 install pytak
+    pip3 install pytak &&\
+    pip3 install sqlalchemy-utils &&\
+    pip3 install python-decouple &&\
+    pip3 install mysqlclient
+
+RUN git clone https://github.com/FreeTAKTeam/FreeTakServer.git 
+RUN cd /FreeTakServer && pip3 install -r requirements.txt && python3 setup.py build && python3 setup.py install --root /
+RUN git clone https://github.com/FreeTAKTeam/UI.git
+RUN cd /UI && pip3 install -r requirements.txt && python3 setup.py build && python3 setup.py install --root /
 
 # Create FTS user
 RUN addgroup --gid 1000 fts && \
@@ -66,14 +69,10 @@ RUN sed -i 's+first_start = .*+first_start = False+g' /usr/local/lib/python3.8/d
     sed -i 's/\r$//' /start-fts.sh
 
 VOLUME ["/data"]
-COPY FTSConfig.yaml /opt/FTSConfig.yaml
-
-ENV APPIP=0.0.0.0
 
 # Use non root user
 # TODO: Folder perms
 #USER fts
-
 
 
 ENTRYPOINT ["/bin/bash", "/start-fts.sh"]
